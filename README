@@ -1,0 +1,5 @@
+This is a program to analyze a memcached' cache.
+The purpose of this, is to cache what is really needed to cache.
+
+
+To know if a page is cachable, look at several sample storage of the same page, see the similarity between them and then, decied whether it is cachable or not.

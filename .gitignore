@@ -1,0 +1,30 @@
+# Object files
+*.o
+*.ko
+
+# Libraries
+*.lib
+*.a
+
+# Temp files
+*~
+
+# Crap
+*.log
+Makefile
+config.h
+config.status
+config.h.in
+src/.deps
+stamp-h1
+autom4te.cache
+configure.scan
+Makefile.in
+aclocal.m4
+compile
+configure
+depcomp
+install-sh
+missing
+reconf
+
