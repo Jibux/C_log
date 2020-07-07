@@ -11,6 +11,7 @@
 
 # Crap
 *.log
+logtest
 Makefile
 config.h
 config.status
