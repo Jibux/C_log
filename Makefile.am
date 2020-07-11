@@ -1,3 +1,3 @@
-SUBDIRS = src
+SUBDIRS = example
 
-dist_doc_DATA = README
+dist_doc_DATA = README.md

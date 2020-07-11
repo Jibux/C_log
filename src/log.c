@@ -1,161 +1,224 @@
 #include "log.h"
 
-static int initLog(const char *filename, long int level, const char *prefix, long int print) {
-	logConf = (LogConfig*)malloc(sizeof(LogConfig));
 
-	logConf->logFile = NULL;
-	logConf->logFileName = (char*)malloc(sizeof(char)*strlen(filename)+1);
-	strcpy(logConf->logFileName, filename);
-	logConf->logLevel = (int)level;
-	logConf->logPrefix = (char*)malloc(sizeof(char)*strlen(prefix)+1);
-	strcpy(logConf->logPrefix, prefix);
-	logConf->printLog = (int)print;
+static int close_log_file(void)
+{
+	if (log_config.file == NULL)
+		return LOG_SUCCESS;
 
+	if (fclose(log_config.file) != 0)
+		return LOG_FAILED;
+
+	log_config.file = NULL;
 	return LOG_SUCCESS;
 }
 
-static int openLog(void) {
-	logConf->logFile = fopen(logConf->logFileName, "a+");
+static FILE *get_print_fd(int level)
+{
+	return (level >= LOG_ERROR) ? stderr : stdout;
+}
 
-	if(logConf->logFile == NULL) {
-		fprintf(stderr, "Can't open log file\n");
+static void init_time(struct tm **time, long *usec)
+{
+	struct timeval tv;
+	time_t t;
+
+	gettimeofday(&tv, NULL);
+	t = tv.tv_sec;
+	*time = localtime(&t);
+	*usec = tv.tv_usec;
+}
+
+static void init_time_prfx(char *time_prfx, size_t length)
+{
+	struct tm *time;
+	long usec;
+
+	init_time(&time, &usec);
+	strftime(time_prfx, length, "%Y-%m-%d %H:%M:%S", time);
+	sprintf(&time_prfx[19], ".%06ld", usec);
+}
+
+static struct s_log_data init_log_data(const char *time_prfx, int level, const char *file, int line, const char *fmt)
+{
+	struct s_log_data log_data;
+	log_data.time_prfx = time_prfx;
+	log_data.level = level;
+	log_data.file = file;
+	log_data.line = line;
+	log_data.fmt = fmt;
+
+	return log_data;
+}
+
+static void write_log(FILE *fd, struct s_log_data log_data, va_list args)
+{
+	fprintf(fd, "%s %-5s %s:%d: ", log_data.time_prfx,
+		get_log_level_string(log_data.level), log_data.file,
+		log_data.line);
+	if (log_config.prefix != NULL)
+		fprintf(fd, "= %s = ", log_config.prefix);
+	vfprintf(fd, log_data.fmt, args);
+	fprintf(fd, "\n");
+	fflush(fd);
+}
+
+static void init_mutex(void)
+{
+	pthread_mutex_init(&s_mutex, NULL);
+}
+
+static void lock(void)
+{
+	pthread_mutex_lock(&s_mutex);
+}
+
+static void unlock(void)
+{
+	pthread_mutex_unlock(&s_mutex);
+}
+
+static int open_log_file()
+{
+	int ret = LOG_SUCCESS;
+
+	if (log_config.filename == NULL) {
+		fprintf(stderr, "Log filename should not be NULL!\n");
 		return LOG_FAILED;
 	}
 
-	return LOG_SUCCESS;
-}
+	lock();
+	close_log_file();
 
-static int closeLog(void) {
-	if(fclose(logConf->logFile)) {
-		return LOG_FAILED;
-	}
-	logConf->logFile = NULL;
-	return LOG_SUCCESS;
-}
+	log_config.file = fopen(log_config.filename, "a+");
 
-static char * getLevelString(int level) {
-	switch(level) {
-		case STAT_ERROR: return "ERROR";
-		break;
-		case STAT_WARN: return "WARN";
-		break;
-		case STAT_NOTICE: return "NOTICE";
-		break;
-		case STAT_DEBUG: return "DEBUG";
-		break;
-		default: return "";
-		break;
+	if (log_config.file == NULL) {
+		fprintf(stderr, "Can't open log file '%s'!\n", log_config.filename);
+		ret = LOG_FAILED;
 	}
 
-	return "";
+	unlock();
+	return ret;
 }
 
-int loadLogConf(void) {
-	config_t cfg, *cf;
-	int level, print;
-	const char *filename;
-	const char *prefix;
+static char *get_bool_string(bool b)
+{
+	return (b) ? "true" : "false";
+}
 
-	logConf = NULL;
+int init_log(void)
+{
+	init_mutex();
+	if (log_config.filename != NULL)
+		return open_log_file();
+	else
+		return LOG_SUCCESS;
 
-	cf = &cfg;
-	config_init(cf);
+}
 
-	if (!config_read_file(cf, LOG_CONFIG_FILE)) {
+int load_log_config_from_file(const char *log_config_file)
+{
+	if (log_config_file == NULL)
+		log_config_file = LOG_CONFIG_FILE_DEFAULT;
+
+	config_init(&cf);
+
+	if (!config_read_file(&cf, log_config_file)) {
 		//fprintf(stderr, "%s:%d - %s\n", config_error_file(cf), config_error_line(cf), config_error_text(cf));
-		fprintf(stderr, "%s: %d - %s\n", LOG_CONFIG_FILE, config_error_line(cf), config_error_text(cf));
-		config_destroy(cf);
+		fprintf(stderr, "%s: %d - %s\n", log_config_file,
+			config_error_line(&cf), config_error_text(&cf));
+		config_destroy(&cf);
 		return LOG_FAILED;
 	}
 
-	if (config_lookup_int(cf, "logLevel", &level))
-		printf("logLevel: %d\n", level);
-	else {
-		fprintf(stderr, "logLevel not defined\n");
-		config_destroy(cf);
-		return LOG_FAILED;
-	}
-	
-	if (config_lookup_string(cf, "logFileName", &filename))
-		printf("logFileName: %s\n", filename);
-	else {
-		fprintf(stderr, "logFileName not defined\n");
-		config_destroy(cf);
-		return LOG_FAILED;
-	}
+	if (!config_lookup_int(&cf, "log_level", &(log_config.level)))
+		log_config.level = log_config_default.level;
 
-	if (config_lookup_string(cf, "logPrefix", &prefix))
-		printf("logPrefix: %s\n", prefix);
-	else {
-		fprintf(stderr, "logPrefix not defined\n");
-		config_destroy(cf);
-		return LOG_FAILED;
-	}
+	if (!config_lookup_string(&cf, "log_filename", &log_config.filename))
+		log_config.filename = log_config_default.filename;
 
-	if (config_lookup_int(cf, "printLog", &print))
-		printf("print: %d\n", print);
-	else {
-		print = 0;
-	}
+	if (!config_lookup_string(&cf, "log_prefix", &(log_config.prefix)))
+		log_config.prefix = log_config_default.prefix;
 
-	initLog(filename, level, prefix, print);
-	
-	config_destroy(cf);
+	if (!config_lookup_bool(&cf, "print_log", (int*)&(log_config.print)))
+		log_config.print = log_config_default.print;
 
 	return LOG_SUCCESS;
 }
 
-int writeLog(int level, const char *format,...) {
-	time_t intps;
-	struct tm * p_datetime;
-	char buf[20];
-	char *levelString;
-	va_list args;
-	FILE *fd = stdout;
-
-	if(openLog() != LOG_SUCCESS) {
-		return LOG_FAILED;
-	}
-
-	if(level == STAT_ERROR)
-		fd = stderr;
-
-	if(level <= logConf->logLevel) {
-		levelString = getLevelString(level);
-		intps = time(NULL);
-		p_datetime = localtime(&intps);
-		sprintf(buf,"%d-%02d-%02d %02d:%02d:%02d",p_datetime->tm_year+1900, p_datetime->tm_mon, p_datetime->tm_mday, p_datetime->tm_hour, p_datetime->tm_min, p_datetime->tm_sec);
-
-		fprintf(logConf->logFile, "=== %s === %s = %s: ", logConf->logPrefix, buf, levelString);
-		va_start (args, format);
-		vfprintf(logConf->logFile, format, args);
-		va_end (args);
-		fprintf(logConf->logFile, "\n");
-
-		if(logConf->printLog) {
-			fprintf(fd, "=== %s === %s = %s: ", logConf->logPrefix, buf, levelString);
-			va_start (args, format);
-			vfprintf(fd, format, args);
-			va_end (args);
-			fprintf(fd, "\n");
-		}
-	}
-
-	closeLog();
+void set_log_level(int level)
+{
+	log_config.level = level;
 }
 
-int freeLog(void) {
-	if(logConf != NULL) {
-		if(logConf->logFileName != NULL)
-			free(logConf->logFileName);
-		if(logConf->logPrefix != NULL)
-			free(logConf->logPrefix);
-	
-		logConf->logFileName = NULL;
-		logConf->logPrefix = NULL;
-		free(logConf);
-		logConf = NULL;
+void set_print_log(bool print)
+{
+	log_config.print = print;
+}
+
+void set_log_filename(const char *filename)
+{
+	if (log_config.file == NULL)
+		log_config.filename = filename;
+	else
+		fprintf(stderr, "Please do free_log() before setting another filename\n");
+}
+
+void set_log_prefix(const char *prefix)
+{
+	log_config.prefix = prefix;
+}
+
+void display_log_config(void)
+{
+	printf("======================\n");
+	printf("C logger configuration\n");
+	printf("======================\n");
+	printf("Parameter | Default\t| Configured\n");
+	printf("------------------------------------\n");
+	printf("level     | %s\t| %s\n",
+		get_log_level_string(log_config_default.level),
+		get_log_level_string(log_config.level));
+	printf("filename  | %s\t| %s\n", log_config_default.filename,
+		log_config.filename);
+	printf("prefix    | %s\t| %s\n", log_config_default.prefix,
+		log_config.prefix);
+	printf("print     | %s\t| %s\n",
+		get_bool_string(log_config_default.print),
+		get_bool_string(log_config.print));
+}
+
+int do_log(int level, const char *file, int line, const char *fmt, ...)
+{
+	char time_prfx[64];
+	struct s_log_data log_data;
+	va_list args_1, args_2;
+
+	if (level > log_config.level)
+		return LOG_SUCCESS;
+
+	init_time_prfx(time_prfx, sizeof(time_prfx));
+	log_data = init_log_data(time_prfx, level, file, line, fmt);
+
+	lock();
+	va_start(args_1, fmt);
+	if (log_config.file != NULL)
+		write_log(log_config.file, log_data, args_1);
+	if (log_config.print) {
+		va_start(args_2, fmt);
+		write_log(get_print_fd(level), log_data, args_2);
+		va_end(args_2);
 	}
-	
+	va_end(args_1);
+	unlock();
+
 	return LOG_SUCCESS;
 }
+
+int free_log(void)
+{
+	config_destroy(&cf);
+
+	return close_log_file();
+}
+

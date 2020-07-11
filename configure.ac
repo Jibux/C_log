@@ -1,5 +1,5 @@
-AC_INIT([testlog], [1.0], [contact-jbh@jibux.info])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AC_INIT([testlog], [1.0], [jibux@jibux.info])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_PROG_CC
 AC_CONFIG_HEADERS([config.h])
 
@@ -10,7 +10,7 @@ AS_IF([test "x$mypj_found_libconfig_headers" != "xyes"],
 
 AC_CONFIG_FILES([
 Makefile
-src/Makefile
+example/Makefile
 ])
 
 CFLAGS=${FLAGS}" "-lconfig

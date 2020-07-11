@@ -1,0 +1,27 @@
+#######################################
+#
+# log.conf sets the log configurations
+#
+#######################################
+
+# log_level sets the level for logging
+# 0 for fatal
+# 1 for error
+# 2 for warn
+# 3 for info
+# 4 for debug
+# 5 for trace
+# Default: 1
+log_level=3;
+
+# The filename for the log
+log_filename="log.log";
+
+# The prefix that will be put before all log lines
+# Default: disabled
+#log_prefix="FOO";
+
+# To print or not in stdout/stderr
+# Default: false
+print_log=false;
+

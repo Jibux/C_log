@@ -16,7 +16,7 @@ Makefile
 config.h
 config.status
 config.h.in
-src/.deps
+.deps
 stamp-h1
 autom4te.cache
 configure.scan
@@ -28,4 +28,5 @@ depcomp
 install-sh
 missing
 reconf
+.dirstamp
 
