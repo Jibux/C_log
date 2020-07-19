@@ -57,7 +57,7 @@ static void write_log(FILE *fd, struct s_log_data log_data, va_list args)
 		get_log_level_string(log_data.level), log_data.file,
 		log_data.line);
 	if (log_config.prefix != NULL)
-		fprintf(fd, "= %s = ", log_config.prefix);
+		fprintf(fd, "%s", log_config.prefix);
 	vfprintf(fd, log_data.fmt, args);
 	fprintf(fd, "\n");
 	fflush(fd);
