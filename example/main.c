@@ -8,6 +8,7 @@ int main (int argc, char *argv[])
 
 	if (load_log_config_from_file("log.conf") != LOG_SUCCESS) {
 		fprintf(stderr, "Unabled to load log configuration\n");
+		free_log();
 		return LOG_FAILED;
 	}
 
@@ -16,6 +17,7 @@ int main (int argc, char *argv[])
 
 	if (init_log() != LOG_SUCCESS) {
 		fprintf(stderr, "Unabled to initialize log\n");
+		free_log();
 		return LOG_FAILED;
 	}
 

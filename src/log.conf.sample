@@ -12,16 +12,20 @@
 # 4 for debug
 # 5 for trace
 # Default: 1
-log_level=3;
+#log_level=1;
 
 # The filename for the log
 log_filename="log.log";
 
-# The prefix that will be put before all log lines
-# Default: disabled
-#log_prefix="=== FOO === ";
-
 # To print or not in stdout/stderr
 # Default: false
-print_log=false;
+#print_log=false;
+
+# Log prefix format
+# %d: date
+# %l: log level
+# %f: source filename
+# %n: line number
+# Default: "%d %l %f:%n: "
+#log_prefix_format="%d %l %f:%n: ";
 

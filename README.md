@@ -50,6 +50,7 @@ int init_log(void);
 ```
 Initialize the log by:
 * Init mutex
+* Init the prefix format
 * Open log file
 
 ```c
@@ -68,9 +69,11 @@ void set_log_filename(const char *filename);
 Sets the filename to be opened by init_log().
 
 ```c
-void set_log_prefix(const char *prefix);
+void set_log_pfx_format(const char *pfx_format);
 ```
-Print a defined prefix before each log.
+Sets the prefix format that will be printed before each log.
+For ex. line number, source filename, date, etc.
+More explanations in the file [log.conf.sample](src/log.conf.sample?raw=1).
 
 ```c
 void display_log_config(void);
