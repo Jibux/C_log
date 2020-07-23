@@ -72,9 +72,13 @@ static pthread_mutex_t mutex;
 
 static FILE *get_print_fd(int level);
 static void init_mutex(void);
+static bool str_elem_empty(const char c);
 static bool str_ended(const char *str);
-static bool analyze_pattern(const char *format, struct prefix_element *pfx_elem, int *i);
+static bool analyze_pattern(const char *format, struct prefix_element *pfx_elem, int i);
 static int init_pfx_elem(struct prefix_element *pfx_elem, size_t length);
+static int add_pfx_elem(struct prefix_element *pfx_elem, size_t length);
+static int check_fmt_and_add_pfx_elem(const char *fmt, struct prefix_element *pfx_elem, size_t length);
+static void re_index_pfx(struct prefix_element **pfx_elem, int *i);
 static int init_prefix(void);
 static void init_time(struct tm **time, long *usec);
 static void init_time_prfx(char *time_prfx, size_t length);

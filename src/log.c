@@ -12,33 +12,38 @@ static void init_mutex(void)
 	pthread_mutex_init(&mutex, NULL);
 }
 
-static bool str_ended(const char *str)
+static bool str_elem_empty(const char c)
 {
-	return (str == NULL || *str == '\0') ? true : false;
+	return (c == '\0') ? true : false;
 }
 
-static bool analyze_pattern(const char *format, struct prefix_element *pfx_elem, int *i)
+static bool str_ended(const char *str)
+{
+	return (str == NULL || str_elem_empty(*str)) ? true : false;
+}
+
+static bool analyze_pattern(const char *format, struct prefix_element *pfx_elem, int i)
 {
 	if (str_ended(format)) {
 		return false;
 	}
 	switch (*format) {
 	case 'd':
-		pfx_elem->fmt[*i] = 's';
+		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_time_pfx;
 		return true;
 	case 'l':
-		pfx_elem->fmt[(*i)++] = '-';
-		pfx_elem->fmt[(*i)++] = '5';
-		pfx_elem->fmt[*i] = 's';
+		pfx_elem->fmt[i++] = '-';
+		pfx_elem->fmt[i++] = '5';
+		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_level_string;
 		return true;
 	case 'f':
-		pfx_elem->fmt[*i] = 's';
+		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_file;
 		return true;
 	case 'n':
-		pfx_elem->fmt[*i] = 'd';
+		pfx_elem->fmt[i] = 'd';
 		pfx_elem->fn = write_ld_line;
 		return true;
 	default:
@@ -58,48 +63,68 @@ static int init_pfx_elem(struct prefix_element *pfx_elem, size_t length)
 	return LOG_SUCCESS;
 }
 
+static int add_pfx_elem(struct prefix_element *pfx_elem, size_t length)
+{
+	int ret;
+
+	if ((ret = init_pfx_elem(pfx_elem + 1, length)) != LOG_SUCCESS)
+		return ret;
+
+	log_cfg.pfx_length++;
+
+	return LOG_SUCCESS;
+}
+
+static int check_fmt_and_add_pfx_elem(const char *fmt, struct prefix_element *pfx_elem, size_t length)
+{
+	if (str_ended(fmt + 1))
+		return LOG_SUCCESS;
+
+	return add_pfx_elem(pfx_elem, length);
+}
+
+static void re_index_pfx(struct prefix_element **pfx_elem, int *i)
+{
+	*i = 0;
+	(*pfx_elem)++;
+}
+
 static int init_prefix(void)
 {
-	const char *format = log_cfg.pfx_format;
+	const char *fmt = log_cfg.pfx_format;
 	size_t length = strlen(log_cfg.pfx_format);
 	struct prefix_element *pfx_elem;
 	int i = 0;
-	bool analyze = false;
-	bool do_analyze = false;
+	bool fmt_matched = false;
+	bool do_process_fmt = false;
+	int ret = LOG_SUCCESS;
 
-	if (str_ended(format) || log_cfg.pfx_elem != NULL)
+	if (str_ended(fmt) || log_cfg.pfx_elem != NULL)
 		return LOG_SUCCESS;
 
-	if ((log_cfg.pfx_elem = malloc(sizeof(struct prefix_element) * (length))) == NULL)
+	if ((log_cfg.pfx_elem = malloc(sizeof(struct prefix_element) * length)) == NULL)
 		return LOG_FAILED;
 	pfx_elem = log_cfg.pfx_elem;
 	init_pfx_elem(pfx_elem, length);
 
 	log_cfg.pfx_length++;
 
-	while (!str_ended(format)) {
-		if (do_analyze) {
-			analyze = analyze_pattern(format, pfx_elem, &i);
-			if (!str_ended(format + 1)) {
-				pfx_elem++;
-				log_cfg.pfx_length++;
-				if (init_pfx_elem(pfx_elem, length) != LOG_SUCCESS)
-					return LOG_FAILED;
-				i = 0;
-			}
-			do_analyze = false;
-		} else {
-			analyze = false;
+	while (!str_ended(fmt)) {
+		fmt_matched = false;
+		if (do_process_fmt) {
+			fmt_matched = analyze_pattern(fmt, pfx_elem, i);
+			ret = check_fmt_and_add_pfx_elem(fmt, pfx_elem, length);
+			re_index_pfx(&pfx_elem, &i);
 		}
-		if (!analyze)
-			pfx_elem->fmt[i++] = *format;
-		if (*format == '%') {
-			do_analyze = true;
-		}
-		format++;
+		if (ret != LOG_SUCCESS)
+			return ret;
+		if (!fmt_matched)
+			pfx_elem->fmt[i++] = *fmt;
+		do_process_fmt = (*fmt == '%') ? true : false;
+		fmt++;
 	}
 
-	return LOG_SUCCESS;
+	return ret;
 }
 
 static void init_time(struct tm **time, long *usec)
@@ -305,16 +330,16 @@ void display_log_config(void)
 	printf("======================\n");
 	printf("C logger configuration\n");
 	printf("======================\n");
-	printf("Parameter | Default\t| Configured\n");
-	printf("------------------------------------\n");
-	printf("level     | %s\t| %s\n",
+	printf("Parameter | Default\t\t| Configured\n");
+	printf("--------------------------------------------\n");
+	printf("level     | %s\t\t| %s\n",
 		get_log_level_string(log_cfg_default.level),
 		get_log_level_string(log_cfg.level));
-	printf("filename  | %s\t| %s\n", log_cfg_default.filename,
+	printf("filename  | %s\t\t| %s\n", log_cfg_default.filename,
 		log_cfg.filename);
-	printf("format    | \"%s\" | \"%s\"\n", log_cfg_default.pfx_format,
+	printf("format    | \"%s\"\t| \"%s\"\n", log_cfg_default.pfx_format,
 		log_cfg.pfx_format);
-	printf("print     | %s\t| %s\n",
+	printf("print     | %s\t\t| %s\n",
 		get_bool_string(log_cfg_default.print),
 		get_bool_string(log_cfg.print));
 	printf("pfx_length: %d\n", log_cfg.pfx_length);
@@ -351,13 +376,14 @@ static void free_log_prefix(void)
 {
 	int i;
 
-	if (log_cfg.pfx_elem != NULL) {
-		for (i = 0; i < log_cfg.pfx_length; i++) {
-			free(log_cfg.pfx_elem[i].fmt);
-		}
-		free(log_cfg.pfx_elem);
-		log_cfg.pfx_elem = NULL;
+	if (log_cfg.pfx_elem == NULL)
+		return;
+
+	for (i = 0; i < log_cfg.pfx_length; i++) {
+		free(log_cfg.pfx_elem[i].fmt);
 	}
+	free(log_cfg.pfx_elem);
+	log_cfg.pfx_elem = NULL;
 }
 
 int free_log(void)
