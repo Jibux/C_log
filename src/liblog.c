@@ -379,9 +379,9 @@ static void free_log_prefix(void)
 	if (log_cfg.pfx_elem == NULL)
 		return;
 
-	for (i = 0; i < log_cfg.pfx_length; i++) {
+	for (i = 0; i < log_cfg.pfx_length; i++)
 		free(log_cfg.pfx_elem[i].fmt);
-	}
+
 	free(log_cfg.pfx_elem);
 	log_cfg.pfx_elem = NULL;
 }

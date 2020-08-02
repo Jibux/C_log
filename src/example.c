@@ -1,4 +1,4 @@
-#include "../src/log.h"
+#include "liblog.h"
 
 
 int main (int argc, char *argv[])
@@ -6,7 +6,7 @@ int main (int argc, char *argv[])
 	int ret;
 	char *name = "toto";
 
-	if (load_log_config_from_file("log.conf") != LOG_SUCCESS) {
+	if (load_log_config_from_file("example_log.conf") != LOG_SUCCESS) {
 		fprintf(stderr, "Unabled to load log configuration\n");
 		free_log();
 		return LOG_FAILED;

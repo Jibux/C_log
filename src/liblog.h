@@ -103,5 +103,5 @@ int do_log(int level, const char *file, int line, const char *fmt, ...);
 static void free_log_prefix(void);
 int free_log(void);
 
-#endif
+#endif /* LOG_H */
 

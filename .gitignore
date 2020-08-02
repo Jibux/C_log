@@ -1,5 +1,6 @@
 # Object files
 *.o
+*.lo
 *.ko
 
 # Libraries
@@ -29,4 +30,13 @@ install-sh
 missing
 reconf
 .dirstamp
+ar-lib
+config.guess
+config.sub
+libtool
+ltmain.sh
+m4/
+shared/.libs/
+shared/liblog.la
+src/log.lo
 
