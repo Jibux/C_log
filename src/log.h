@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <libconfig.h>
-#include <config.h>
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
