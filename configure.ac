@@ -1,7 +1,6 @@
 AC_INIT([testlog], [1.0], [jibux@jibux.info])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_PROG_CC
-AC_CONFIG_HEADERS([config.h])
 
 AC_CHECK_HEADERS([libconfig.h],[mypj_found_libconfig_headers=yes; break;])
 
