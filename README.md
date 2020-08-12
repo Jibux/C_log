@@ -10,6 +10,7 @@ Linux only (C99).
 * Can be used as is
 * Can be used as shared lib
 * Thread safe
+* Customizable log format
 
 **Warning: A lot of functions are not signal safe!**
 

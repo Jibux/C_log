@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#include "log.h"
+#include "liblog.h"
 
 static FILE *get_print_fd(int level)
 {
@@ -22,35 +22,36 @@ static bool str_ended(const char *str)
 	return (str == NULL || str_elem_empty(*str)) ? true : false;
 }
 
-static bool analyze_pattern(const char *format, struct prefix_element *pfx_elem, int i)
+static int process_pattern(const char *format, struct prefix_element *pfx_elem, int i)
 {
 	if (str_ended(format)) {
-		return false;
+		return LOG_FAILED;
 	}
 	switch (*format) {
 	case 'd':
 		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_time_pfx;
-		return true;
+		break;
 	case 'l':
 		pfx_elem->fmt[i++] = '-';
 		pfx_elem->fmt[i++] = '5';
 		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_level_string;
-		return true;
+		break;
 	case 'f':
 		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_file;
-		return true;
+		break;
 	case 'n':
 		pfx_elem->fmt[i] = 'd';
 		pfx_elem->fn = write_ld_line;
-		return true;
+		break;
 	default:
-		return false;
+		pfx_elem->fmt[i] = *format;
+		break;
 	}
 
-	return false;
+	return LOG_SUCCESS;
 }
 
 static int init_pfx_elem(struct prefix_element *pfx_elem, size_t length)
@@ -63,30 +64,44 @@ static int init_pfx_elem(struct prefix_element *pfx_elem, size_t length)
 	return LOG_SUCCESS;
 }
 
-static int add_pfx_elem(struct prefix_element *pfx_elem, size_t length)
-{
-	int ret;
-
-	if ((ret = init_pfx_elem(pfx_elem + 1, length)) != LOG_SUCCESS)
-		return ret;
-
-	log_cfg.pfx_length++;
-
-	return LOG_SUCCESS;
-}
-
-static int check_fmt_and_add_pfx_elem(const char *fmt, struct prefix_element *pfx_elem, size_t length)
-{
-	if (str_ended(fmt + 1))
-		return LOG_SUCCESS;
-
-	return add_pfx_elem(pfx_elem, length);
-}
-
 static void re_index_pfx(struct prefix_element **pfx_elem, int *i)
 {
 	*i = 0;
 	(*pfx_elem)++;
+}
+
+static int add_pfx_elem(struct prefix_element **pfx_elem, size_t length)
+{
+	int ret;
+
+	if ((ret = init_pfx_elem((*pfx_elem) + 1, length)) != LOG_SUCCESS)
+		return ret;
+
+	log_cfg.pfx_length++;
+
+	return ret;
+}
+
+static int process_fmt(const char *fmt, struct prefix_element **pfx_elem, size_t length)
+{
+	static bool do_process_pattern = false;
+	static int i = 0;
+	int ret = LOG_SUCCESS;
+
+	if (do_process_pattern) {
+		ret = process_pattern(fmt, *pfx_elem, i);
+		if (ret != LOG_SUCCESS)
+			return ret;
+		ret = add_pfx_elem(pfx_elem, length);
+		if (ret != LOG_SUCCESS)
+			return ret;
+		re_index_pfx(pfx_elem, &i);
+	} else {
+		(*pfx_elem)->fmt[i++] = *fmt;
+	}
+	do_process_pattern = (*fmt == '%') ? true : false;
+
+	return ret;
 }
 
 static int init_prefix(void)
@@ -94,9 +109,6 @@ static int init_prefix(void)
 	const char *fmt = log_cfg.pfx_format;
 	size_t length = strlen(log_cfg.pfx_format);
 	struct prefix_element *pfx_elem;
-	int i = 0;
-	bool fmt_matched = false;
-	bool do_process_fmt = false;
 	int ret = LOG_SUCCESS;
 
 	if (str_ended(fmt) || log_cfg.pfx_elem != NULL)
@@ -110,17 +122,9 @@ static int init_prefix(void)
 	log_cfg.pfx_length++;
 
 	while (!str_ended(fmt)) {
-		fmt_matched = false;
-		if (do_process_fmt) {
-			fmt_matched = analyze_pattern(fmt, pfx_elem, i);
-			ret = check_fmt_and_add_pfx_elem(fmt, pfx_elem, length);
-			re_index_pfx(&pfx_elem, &i);
-		}
+		ret = process_fmt(fmt, &pfx_elem, length);
 		if (ret != LOG_SUCCESS)
 			return ret;
-		if (!fmt_matched)
-			pfx_elem->fmt[i++] = *fmt;
-		do_process_fmt = (*fmt == '%') ? true : false;
 		fmt++;
 	}
 
