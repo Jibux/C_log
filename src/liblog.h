@@ -73,7 +73,7 @@ static FILE *get_print_fd(int level);
 static void init_mutex(void);
 static bool str_elem_empty(const char c);
 static bool str_ended(const char *str);
-static int process_pattern(const char *format, struct prefix_element *pfx_elem, int i);
+static void process_pattern(const char *format, struct prefix_element *pfx_elem, int i);
 static int init_pfx_elem(struct prefix_element *pfx_elem, size_t length);
 static void re_index_pfx(struct prefix_element **pfx_elem, int *i);
 static int add_pfx_elem(struct prefix_element **pfx_elem, size_t length);

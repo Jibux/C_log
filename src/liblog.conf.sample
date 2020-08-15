@@ -26,6 +26,7 @@ log_filename="log.log";
 # %l: log level
 # %f: source filename
 # %n: line number
+# %%: '%' character
 # Default: "%d %l %f:%n: "
 #log_prefix_format="%d %l %f:%n: ";
 

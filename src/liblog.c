@@ -22,44 +22,45 @@ static bool str_ended(const char *str)
 	return (str == NULL || str_elem_empty(*str)) ? true : false;
 }
 
-static int process_pattern(const char *format, struct prefix_element *pfx_elem, int i)
+static void process_pattern(const char *format, struct prefix_element *pfx_elem, int i)
 {
-	if (str_ended(format)) {
-		return LOG_FAILED;
-	}
 	switch (*format) {
 	case 'd':
+		pfx_elem->fmt[i++] = '%';
 		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_time_pfx;
 		break;
 	case 'l':
+		pfx_elem->fmt[i++] = '%';
 		pfx_elem->fmt[i++] = '-';
 		pfx_elem->fmt[i++] = '5';
 		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_level_string;
 		break;
 	case 'f':
+		pfx_elem->fmt[i++] = '%';
 		pfx_elem->fmt[i] = 's';
 		pfx_elem->fn = write_ld_file;
 		break;
 	case 'n':
+		pfx_elem->fmt[i++] = '%';
 		pfx_elem->fmt[i] = 'd';
 		pfx_elem->fn = write_ld_line;
 		break;
+	case '%':
+		pfx_elem->fmt[i] = '%';
+		break;
 	default:
-		pfx_elem->fmt[i] = *format;
 		break;
 	}
-
-	return LOG_SUCCESS;
 }
 
 static int init_pfx_elem(struct prefix_element *pfx_elem, size_t length)
 {
 	pfx_elem->fn = NULL;
-	if ((pfx_elem->fmt = (char *)malloc(sizeof(char) * (length + 1))) == NULL)
+	if ((pfx_elem->fmt = (char *)malloc(sizeof(char) * (length * 3))) == NULL)
 		return LOG_FAILED;
-	memset(pfx_elem->fmt, '\0', (sizeof(char) * (length + 1)));
+	memset(pfx_elem->fmt, '\0', (sizeof(char) * (length * 3)));
 
 	return LOG_SUCCESS;
 }
@@ -89,17 +90,18 @@ static int process_fmt(const char *fmt, struct prefix_element **pfx_elem, size_t
 	int ret = LOG_SUCCESS;
 
 	if (do_process_pattern) {
-		ret = process_pattern(fmt, *pfx_elem, i);
-		if (ret != LOG_SUCCESS)
-			return ret;
+		process_pattern(fmt, *pfx_elem, i);
 		ret = add_pfx_elem(pfx_elem, length);
 		if (ret != LOG_SUCCESS)
 			return ret;
 		re_index_pfx(pfx_elem, &i);
+		do_process_pattern = false;
+	} else if (*fmt == '%') {
+		do_process_pattern = true;
 	} else {
 		(*pfx_elem)->fmt[i++] = *fmt;
+		do_process_pattern = false;
 	}
-	do_process_pattern = (*fmt == '%') ? true : false;
 
 	return ret;
 }
