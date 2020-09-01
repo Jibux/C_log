@@ -34,6 +34,8 @@ struct log_config {
 	bool print;
 	const char *filename;
 	const char *pfx_format;
+	const char *time_format;
+	bool usec;
 	struct prefix_element *pfx_elem;
 	size_t pfx_length;
 };
@@ -52,6 +54,8 @@ static const struct log_config log_cfg_default = {
 	false,
 	NULL,
 	"%d %l %f:%n: ",
+	"%Y-%m-%d %H:%M:%S",
+	false,
 	NULL,
 	0,
 };
@@ -80,8 +84,8 @@ static int add_pfx_elem(struct prefix_element **pfx_elem, size_t length);
 static int process_fmt(const char *fmt, struct prefix_element **pfx_elem, size_t length);
 static int init_prefix(void);
 static void init_time(struct tm **time, long *usec);
-static void init_time_prfx(char *time_prfx, size_t length);
-static struct log_data init_log_data(const char *time_prfx, int level, const char *file, int line, const char *fmt);
+static void init_time_pfx(char *time_pfx, size_t length);
+static struct log_data init_log_data(const char *time_pfx, int level, const char *file, int line, const char *fmt);
 static void write_ld_time_pfx(FILE *fd, struct log_data log_data, char *fmt);
 static void write_ld_level_string(FILE *fd, struct log_data log_data, char *fmt);
 static void write_ld_file(FILE *fd, struct log_data log_data, char *fmt);
@@ -98,6 +102,8 @@ void set_log_level(int level);
 void set_print_log(bool print);
 void set_log_filename(const char *filename);
 void set_log_pfx_format(const char *format);
+void set_log_time_format(const char *time_format);
+void set_log_usec(bool usec);
 void display_log_config(void);
 int do_log(int level, const char *file, int line, const char *fmt, ...);
 static void free_log_prefix(void);

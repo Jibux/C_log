@@ -144,14 +144,16 @@ static void init_time(struct tm **time, long *usec)
 	*usec = tv.tv_usec;
 }
 
-static void init_time_prfx(char *time_pfx, size_t length)
+static void init_time_pfx(char *time_pfx, size_t length)
 {
 	struct tm *time;
 	long usec;
+	size_t time_pfx_strlen;
 
 	init_time(&time, &usec);
-	strftime(time_pfx, length, "%Y-%m-%d %H:%M:%S", time);
-	sprintf(&time_pfx[19], ".%06ld", usec);
+	strftime(time_pfx, length, log_cfg.time_format, time);
+	if (log_cfg.usec && ((time_pfx_strlen = strlen(time_pfx)) + 8) < length)
+		sprintf(&time_pfx[time_pfx_strlen], ".%06ld", usec);
 }
 
 static struct log_data init_log_data(const char *time_pfx, int level, const char *file, int line, const char *fmt)
@@ -299,6 +301,12 @@ int load_log_config_from_file(const char *log_config_file)
 	if (!config_lookup_string(&cf, "log_prefix_format", &(log_cfg.pfx_format)))
 		log_cfg.pfx_format = log_cfg_default.pfx_format;
 
+	if (!config_lookup_string(&cf, "log_time_format", &(log_cfg.time_format)))
+		log_cfg.time_format = log_cfg_default.time_format;
+
+	if (!config_lookup_bool(&cf, "log_display_microseconds", (int*)&(log_cfg.usec)))
+		log_cfg.usec = log_cfg_default.usec;
+
 	if (!config_lookup_bool(&cf, "print_log", (int*)&(log_cfg.print)))
 		log_cfg.print = log_cfg_default.print;
 
@@ -331,21 +339,36 @@ void set_log_pfx_format(const char *format)
 		fprintf(stderr, "Please do free_log() before setting another pfx_format\n");
 }
 
+void set_log_time_format(const char *time_format)
+{
+	log_cfg.time_format = time_format;
+}
+
+void set_log_usec(bool usec)
+{
+	log_cfg.usec = usec;
+}
+
 void display_log_config(void)
 {
 	printf("======================\n");
 	printf("C logger configuration\n");
 	printf("======================\n");
-	printf("Parameter | Default\t\t| Configured\n");
-	printf("--------------------------------------------\n");
-	printf("level     | %s\t\t| %s\n",
+	printf("Parameter            | Default\t\t\t| Configured\n");
+	printf("-------------------------------------------------------------\n");
+	printf("level                | %s\t\t\t| %s\n",
 		get_log_level_string(log_cfg_default.level),
 		get_log_level_string(log_cfg.level));
-	printf("filename  | %s\t\t| %s\n", log_cfg_default.filename,
+	printf("filename             | %s\t\t\t| %s\n", log_cfg_default.filename,
 		log_cfg.filename);
-	printf("format    | \"%s\"\t| \"%s\"\n", log_cfg_default.pfx_format,
+	printf("format               | \"%s\"\t\t| \"%s\"\n", log_cfg_default.pfx_format,
 		log_cfg.pfx_format);
-	printf("print     | %s\t\t| %s\n",
+	printf("time format          | \"%s\"\t| \"%s\"\n", log_cfg_default.time_format,
+		log_cfg.time_format);
+	printf("display microseconds | %s\t\t\t| %s\n",
+		get_bool_string(log_cfg_default.usec),
+		get_bool_string(log_cfg.usec));
+	printf("print                | %s\t\t\t| %s\n",
 		get_bool_string(log_cfg_default.print),
 		get_bool_string(log_cfg.print));
 	printf("pfx_length: %d\n", log_cfg.pfx_length);
@@ -353,15 +376,15 @@ void display_log_config(void)
 
 int do_log(int level, const char *file, int line, const char *fmt, ...)
 {
-	char time_prfx[64];
+	char time_pfx[64] = "";
 	struct log_data log_data;
 	va_list args_1, args_2;
 
 	if (level > log_cfg.level)
 		return LOG_SUCCESS;
 
-	init_time_prfx(time_prfx, sizeof(time_prfx));
-	log_data = init_log_data(time_prfx, level, file, line, fmt);
+	init_time_pfx(time_pfx, sizeof(time_pfx));
+	log_data = init_log_data(time_pfx, level, file, line, fmt);
 
 	lock();
 	va_start(args_1, fmt);

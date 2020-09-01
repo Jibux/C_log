@@ -11,6 +11,7 @@ Linux only (C99).
 * Can be used as shared lib
 * Thread safe
 * Customizable log format
+* Customizable date format with optional microseconds
 
 **Warning: A lot of functions are not signal safe!**
 
@@ -93,6 +94,17 @@ Sets the prefix format that will be printed before each log.
 For ex. line number, source filename, date, etc.
 More explanations in the file [liblog.conf.sample](src/liblog.conf.sample?raw=1).
 **Should be called before init_log().**
+
+```c
+void set_log_time_format(const char *time_format);
+```
+Sets the time format.
+More explanations in the file [liblog.conf.sample](src/liblog.conf.sample?raw=1).
+
+```c
+void set_log_usec(bool usec);
+```
+If 'true', microseconds will be added to the time format.
 
 ```c
 void display_log_config(void);
